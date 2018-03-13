@@ -16,6 +16,7 @@ package public_source_ip
 
 import (
 	"net"
+	"net/http"
 	"strings"
 )
 
@@ -25,23 +26,12 @@ type PublicSourceIP struct {
 }
 
 // New public ip instance
-func New(xffHeader string) *PublicSourceIP {
-	networks := []*net.IPNet{
-		&net.IPNet{net.IPv4(10, 0, 0, 0), net.CIDRMask(8, 32)},
-		&net.IPNet{net.IPv4(192, 168, 0, 0), net.CIDRMask(16, 32)},
-		&net.IPNet{net.IPv4(172, 16, 0, 0), net.CIDRMask(12, 32)},
-		&net.IPNet{net.IPv4(169, 254, 0, 0), net.CIDRMask(16, 32)},
-		&net.IPNet{net.IPv4(127, 0, 0, 1), net.CIDRMask(8, 32)},
-		// Unique local address
-		&net.IPNet{net.IP{0xfc, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, net.CIDRMask(7, 128)},
-		// Local addresses
-		&net.IPNet{net.IP{0xfe, 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, net.CIDRMask(10, 128)},
-		&net.IPNet{net.IPv6loopback, net.CIDRMask(10, 128)},
-	}
+func New(request *http.Request) *PublicSourceIP {
+	networks := getNetworks()
 
 	return &PublicSourceIP{
 		IpNets:    networks,
-		XFFHeader: xffHeader,
+		XFFHeader: request.Header.Get("X-Forwarded-For"),
 	}
 }
 
@@ -72,4 +62,21 @@ func (publicSourceIP *PublicSourceIP) PublicIP() string {
 		}
 	}
 	return ""
+}
+
+func getNetworks() []*net.IPNet {
+	networks := []*net.IPNet{
+		&net.IPNet{net.IPv4(10, 0, 0, 0), net.CIDRMask(8, 32)},
+		&net.IPNet{net.IPv4(192, 168, 0, 0), net.CIDRMask(16, 32)},
+		&net.IPNet{net.IPv4(172, 16, 0, 0), net.CIDRMask(12, 32)},
+		&net.IPNet{net.IPv4(169, 254, 0, 0), net.CIDRMask(16, 32)},
+		&net.IPNet{net.IPv4(127, 0, 0, 1), net.CIDRMask(8, 32)},
+		// Unique local address
+		&net.IPNet{net.IP{0xfc, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, net.CIDRMask(7, 128)},
+		// Local addresses
+		&net.IPNet{net.IP{0xfe, 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, net.CIDRMask(10, 128)},
+		&net.IPNet{net.IPv6loopback, net.CIDRMask(10, 128)},
+	}
+
+	return networks
 }
