@@ -22,13 +22,8 @@ import (
 )
 
 func TestIsNotRoutedWithOwnInternalNetworkList(t *testing.T) {
-	req, err := http.NewRequest("PUT", "/", nil)
-	req.Header.Set("X-Forwarded-For", "203.0.113.7")
-	publicSoureIP := New(req)
-
-	assert.Nil(t, err, "unable to create new request")
-	for _, network := range getNetworks() {
-		assert.Falsef(t, publicSoureIP.isRouted(network.IP), "non-routable network %v", network.IP.String())
+	for _, network := range networks {
+		assert.Falsef(t, isRouted(network.IP), "non-routable network %v", network.IP.String())
 	}
 }
 
@@ -46,12 +41,10 @@ func TestIsNotRoutedWithAddressXFFHeaders(t *testing.T) {
 		{"", ""},
 		{"fd00::, 2001:0db8:85a3:0000:0000:8a2e:0370:7334, 192.4.1.56", "192.4.1.56"},
 	}
-
 	for i, _ := range xff {
-		req, err := http.NewRequest("PUT", "/", nil)
+		req, err := http.NewRequest("GET", "/", nil)
 		req.Header.Set("X-Forwarded-For", xff[i].header)
-		publicSoureIP := New(req)
-		ip := publicSoureIP.PublicIP()
+		ip := PublicIP(req)
 
 		assert.Nil(t, err, "unable to create new request")
 		assert.Truef(t, ip == xff[i].realip, "real ip result expected \"%v\", but got \"%v\"", xff[i].realip, ip)
@@ -69,10 +62,9 @@ func TestIsNotRoutedWithInvalidAddressXFFHeaders(t *testing.T) {
 		{"****", ""},
 	}
 	for i, _ := range xff {
-		req, err := http.NewRequest("PUT", "/", nil)
+		req, err := http.NewRequest("GET", "/", nil)
 		req.Header.Set("X-Forwarded-For", xff[i].header)
-		publicSoureIP := New(req)
-		ip := publicSoureIP.PublicIP()
+		ip := PublicIP(req)
 
 		assert.Nil(t, err, "unable to create new request")
 		assert.Truef(t, ip == xff[i].realip, "real ip result expected \"%v\", but got \"%v\"", xff[i].realip, ip)

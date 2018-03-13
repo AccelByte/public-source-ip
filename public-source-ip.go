@@ -20,52 +20,11 @@ import (
 	"strings"
 )
 
-type PublicSourceIP struct {
-	IpNets    []*net.IPNet
-	XFFHeader string
-}
+type ipNets []*net.IPNet
 
-// New public ip instance
-func New(request *http.Request) *PublicSourceIP {
-	networks := getNetworks()
-
-	return &PublicSourceIP{
-		IpNets:    networks,
-		XFFHeader: request.Header.Get("X-Forwarded-For"),
-	}
-}
-
-// isRouted test if an IP is routed on the internet, if it's not then it's a private network
-func (publicSourceIP *PublicSourceIP) isRouted(ip net.IP) bool {
-	if len(ip) == 0 || ip.Equal(net.IPv4zero) || ip.Equal(net.IPv6zero) {
-		return false
-	}
-	for i := range publicSourceIP.IpNets {
-		if publicSourceIP.IpNets[i].Contains(ip) == true {
-			return false
-		}
-	}
-	return true
-}
-
-// PublicIP determines the public IP used to connect to the first ingress load balancer
-func (publicSourceIP *PublicSourceIP) PublicIP() string {
-	// Example header:
-	// X-Forwarded-For: 10.1.1.2, 203.0.113.195, 70.41.3.18, 150.172.238.178, 192.168.1.1
-	nospaces := strings.Replace(publicSourceIP.XFFHeader, " ", "", -1)
-	forwards := strings.Split(nospaces, ",")
-	for i, _ := range forwards {
-		i = len(forwards) - i - 1 // Trace backwards to first external IP address
-		ip := net.ParseIP(forwards[i])
-		if publicSourceIP.isRouted(ip) == true {
-			return ip.String()
-		}
-	}
-	return ""
-}
-
-func getNetworks() []*net.IPNet {
-	networks := []*net.IPNet{
+var (
+	// Local networks not routed on the internet (these change occasionally, esp with IPv6)
+	networks = ipNets{
 		&net.IPNet{net.IPv4(10, 0, 0, 0), net.CIDRMask(8, 32)},
 		&net.IPNet{net.IPv4(192, 168, 0, 0), net.CIDRMask(16, 32)},
 		&net.IPNet{net.IPv4(172, 16, 0, 0), net.CIDRMask(12, 32)},
@@ -77,6 +36,34 @@ func getNetworks() []*net.IPNet {
 		&net.IPNet{net.IP{0xfe, 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, net.CIDRMask(10, 128)},
 		&net.IPNet{net.IPv6loopback, net.CIDRMask(10, 128)},
 	}
+)
 
-	return networks
+// isRouted test if an IP is routed on the internet, if it's not then it's a private network
+func isRouted(ip net.IP) bool {
+	if len(ip) == 0 || ip.Equal(net.IPv4zero) || ip.Equal(net.IPv6zero) {
+		return false
+	}
+	for i := range networks {
+		if networks[i].Contains(ip) == true {
+			return false
+		}
+	}
+	return true
+}
+
+// PublicIP determines the public IP used to connect to the first ingress load balancer
+func PublicIP(request *http.Request) string {
+	// Example header:
+	// X-Forwarded-For: 10.1.1.2, 203.0.113.195, 70.41.3.18, 150.172.238.178, 192.168.1.1
+	xffHeader := request.Header.Get("X-Forwarded-For")
+	nospaces := strings.Replace(xffHeader, " ", "", -1)
+	forwards := strings.Split(nospaces, ",")
+	for i, _ := range forwards {
+		i = len(forwards) - i - 1 // Trace backwards to first external IP address
+		ip := net.ParseIP(forwards[i])
+		if isRouted(ip) == true {
+			return ip.String()
+		}
+	}
+	return ""
 }
