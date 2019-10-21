@@ -37,6 +37,8 @@ var (
 		// Local addresses
 		&net.IPNet{IP: net.IP{0xfe, 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, Mask: net.CIDRMask(10, 128)},
 		&net.IPNet{IP: net.IPv6loopback, Mask: net.CIDRMask(10, 128)},
+		// Shared Address Space, ref https://tools.ietf.org/html/rfc6598
+		&net.IPNet{IP: net.IPv4(100, 64, 0, 0), Mask: net.CIDRMask(10, 32)},
 	}
 )
 
