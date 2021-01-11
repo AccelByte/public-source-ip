@@ -64,7 +64,6 @@ func PublicIP(request *http.Request) string {
 	forwards := strings.Split(nospaces, ",")
 
 	for i := range forwards {
-		i = len(forwards) - i - 1 // Trace backwards to first external IP address
 		ip := net.ParseIP(forwards[i])
 		if isRouted(ip) == true {
 			return ip.String()
